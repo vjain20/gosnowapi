@@ -1,0 +1,13 @@
+# Go
+*.exe
+*.test
+*.out
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+
+# MacOS
+.DS_Store
+
