@@ -2,10 +2,10 @@ package snowapi
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
-	"encoding/json"
 
 	"github.com/vjain20/gosnowapi/internal/auth"
 )
@@ -67,7 +67,6 @@ func (c *Client) Query(statement string) ([][]any, error) {
 	return resp.Data, nil
 }
 
-
 // Execute runs a SQL statement using the Snowflake SQL API.
 func (c *Client) Execute(statement string, async bool) (*QueryResponse, error) {
 	// Build the request body
@@ -96,7 +95,7 @@ func (c *Client) Execute(statement string, async bool) (*QueryResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate auth token: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+ token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 

@@ -2,9 +2,9 @@ package snowapi
 
 // QueryRequest represents the request body for executing a SQL statement.
 type QueryRequest struct {
-	Statement          string               `json:"statement"`
-	Timeout            int                  `json:"timeout,omitempty"`
-	ResultSetMetaData  *ResultSetMetaConfig `json:"resultSetMetaData,omitempty"`
+	Statement         string               `json:"statement"`
+	Timeout           int                  `json:"timeout,omitempty"`
+	ResultSetMetaData *ResultSetMetaConfig `json:"resultSetMetaData,omitempty"`
 	// Future options: Async, RequestID, etc.
 }
 
