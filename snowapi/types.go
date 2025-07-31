@@ -62,3 +62,8 @@ type QueryErrorResponse struct {
 	SQLState        string `json:"sqlState,omitempty"`
 	StatementHandle string `json:"statementHandle,omitempty"`
 }
+
+type RequestOptions struct {
+	RequestID string // Optional UUID for deduplication
+	Retry     *bool  // Optional: default true if RequestID is set, otherwise false
+}

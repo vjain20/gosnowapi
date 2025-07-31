@@ -2,7 +2,8 @@
 *.exe
 *.test
 *.out
-examples/test_jwt.go
+examples/
+testdata/
 
 # IDE/editor
 .vscode/
