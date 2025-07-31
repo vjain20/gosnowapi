@@ -228,3 +228,27 @@ func (c *Client) Cancel(statementHandle string) error {
 
 	return nil
 }
+
+// WaitUntilComplete polls until the statement finishes execution or fails.
+// Returns the final result or an error.
+func (c *Client) WaitUntilComplete(handle string, interval time.Duration, maxRetries int) (*QueryResponse, error) {
+	for i := 0; i < maxRetries; i++ {
+		resp, status, err := c.Poll(handle, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		switch status {
+		case http.StatusOK:
+			return resp, nil // success
+		case http.StatusAccepted:
+			time.Sleep(interval) // still running
+		case http.StatusUnprocessableEntity:
+			return nil, fmt.Errorf("query execution failed: %s (code %s)", resp.Message, resp.Code)
+		default:
+			return nil, fmt.Errorf("unexpected status %d: %s", status, resp.Message)
+		}
+	}
+
+	return nil, fmt.Errorf("max retries exceeded while waiting for completion")
+}
