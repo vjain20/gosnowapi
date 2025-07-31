@@ -150,7 +150,8 @@ func (c *Client) Execute(statement string, async bool, opts *RequestOptions) (*Q
 }
 
 // Poll checks the status of an asynchronous query or fetches a partition of results.
-func (c *Client) Poll(handle string, partition int) (*QueryResponse, error) {
+// Returns the parsed response, HTTP status code, and error if any.
+func (c *Client) Poll(handle string, partition int) (*QueryResponse, int, error) {
 	endpoint := fmt.Sprintf("%s/%s", c.baseURL, handle)
 
 	// Add partition query param if needed
@@ -158,16 +159,16 @@ func (c *Client) Poll(handle string, partition int) (*QueryResponse, error) {
 		endpoint = fmt.Sprintf("%s?partition=%d", endpoint, partition)
 	}
 
-	// Generate JWT
+	// Generate auth token
 	token, err := c.authToken()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate auth token: %w", err)
+		return nil, 0, fmt.Errorf("failed to generate auth token: %w", err)
 	}
 
 	// Build request
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create poll request: %w", err)
+		return nil, 0, fmt.Errorf("failed to create poll request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
@@ -176,27 +177,17 @@ func (c *Client) Poll(handle string, partition int) (*QueryResponse, error) {
 	// Send request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("poll request failed: %w", err)
+		return nil, 0, fmt.Errorf("poll request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Parse response
 	var result QueryResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode poll response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to decode poll response: %w", err)
 	}
 
-	// Handle common status codes
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return &result, nil // query completed
-	case http.StatusAccepted:
-		return &result, nil // still in progress — caller should keep polling
-	case http.StatusUnprocessableEntity:
-		return nil, fmt.Errorf("query execution failed: %s (code %s)", result.Message, result.Code)
-	default:
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, result.Message)
-	}
+	return &result, resp.StatusCode, nil
 }
 
 func (c *Client) Cancel(statementHandle string) error {
