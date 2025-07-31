@@ -148,3 +148,92 @@ func (c *Client) Execute(statement string, async bool, opts *RequestOptions) (*Q
 
 	return &result, nil
 }
+
+// Poll checks the status of an asynchronous query or fetches a partition of results.
+func (c *Client) Poll(handle string, partition int) (*QueryResponse, error) {
+	endpoint := fmt.Sprintf("%s/%s", c.baseURL, handle)
+
+	// Add partition query param if needed
+	if partition > 0 {
+		endpoint = fmt.Sprintf("%s?partition=%d", endpoint, partition)
+	}
+
+	// Generate JWT
+	token, err := c.authToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate auth token: %w", err)
+	}
+
+	// Build request
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create poll request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	// Send request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("poll request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var result QueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode poll response: %w", err)
+	}
+
+	// Handle common status codes
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return &result, nil // query completed
+	case http.StatusAccepted:
+		return &result, nil // still in progress — caller should keep polling
+	case http.StatusUnprocessableEntity:
+		return nil, fmt.Errorf("query execution failed: %s (code %s)", result.Message, result.Code)
+	default:
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, result.Message)
+	}
+}
+
+func (c *Client) Cancel(statementHandle string) error {
+	// Generate auth token
+	token, err := c.authToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate auth token: %w", err)
+	}
+
+	// Build URL
+	cancelURL := fmt.Sprintf("%s/%s/cancel", c.baseURL, statementHandle)
+
+	// Create POST request with empty JSON body
+	req, err := http.NewRequest("POST", cancelURL, bytes.NewReader([]byte("{}")))
+	if err != nil {
+		return fmt.Errorf("failed to create cancel request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	// Send request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("cancel request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Handle non-200s
+	if resp.StatusCode != http.StatusOK {
+		var errResp QueryErrorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return fmt.Errorf("cancel failed with status %d", resp.StatusCode)
+		}
+		return fmt.Errorf("cancel failed: %s (code %s)", errResp.Message, errResp.Code)
+	}
+
+	return nil
+}
