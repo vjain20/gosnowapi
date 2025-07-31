@@ -55,6 +55,64 @@ if err != nil {
 }
 ```
 
+### 🌐 PrivateLink & Custom Host Configuration
+
+By default, `gosnowapi` connects to:
+
+```
+https://<account>.snowflakecomputing.com/api/v2/statements
+```
+
+If you use **AWS PrivateLink** or a **custom domain** for Snowflake, you can configure the base URL like so:
+
+---
+
+#### ✅ Option 1: Use PrivateLink
+
+Set the `PrivateLink` flag in your config:
+
+```go
+cfg := snowapi.Config{
+    Account:     "your_account",
+    User:        "your_user",
+    PrivateKey:  privateKeyBytes,
+    PublicKey:   publicKeyBytes,
+    PrivateLink: true,
+}
+```
+
+This results in:
+
+```
+https://<account>.privatelink.snowflakecomputing.com/api/v2/statements
+```
+
+---
+
+#### ✅ Option 2: Override the Full Host Domain
+
+Use `OverrideHost` for full control:
+
+```go
+cfg := snowapi.Config{
+    Account:      "your_account",
+    User:         "your_user",
+    PrivateKey:   privateKeyBytes,
+    PublicKey:    publicKeyBytes,
+    OverrideHost: "custom.snowflakeproxy.internal",
+}
+```
+
+This results in:
+
+```
+https://<account>.custom.snowflakeproxy.internal/api/v2/statements
+```
+
+---
+
+> **Note:** If both `PrivateLink` and `OverrideHost` are set, `OverrideHost` takes precedence.
+
 ---
 
 ## Executing Queries
