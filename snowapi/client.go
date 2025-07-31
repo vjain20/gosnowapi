@@ -15,16 +15,18 @@ import (
 
 // Config holds config needed to initialize the client.
 type Config struct {
-	Account     string
-	User        string
-	Role        string
-	Database    string
-	Schema      string
-	Warehouse   string
-	PrivateKey  []byte // PEM (PKCS8)
-	PublicKey   []byte // PEM
-	ExpireAfter time.Duration
-	HTTPTimeout time.Duration
+	Account      string
+	User         string
+	Role         string
+	Database     string
+	Schema       string
+	Warehouse    string
+	PrivateKey   []byte
+	PublicKey    []byte
+	ExpireAfter  time.Duration
+	HTTPTimeout  time.Duration
+	PrivateLink  bool   // NEW: flag to indicate if PrivateLink should be used
+	OverrideHost string // Optional: override base domain
 }
 
 // Client is the main Snowflake SQL API client.
@@ -45,8 +47,18 @@ func NewClient(cfg Config) (*Client, error) {
 		timeout = 10 * time.Second
 	}
 
+	host := "snowflakecomputing.com"
+	if cfg.PrivateLink {
+		host = "privatelink.snowflakecomputing.com"
+	}
+	if cfg.OverrideHost != "" {
+		host = cfg.OverrideHost
+	}
+
+	baseURL := fmt.Sprintf("https://%s.%s/api/v2/statements", cfg.Account, host)
+
 	return &Client{
-		baseURL:    fmt.Sprintf("https://%s.snowflakecomputing.com/api/v2/statements", cfg.Account),
+		baseURL:    baseURL,
 		httpClient: &http.Client{Timeout: timeout},
 		config:     cfg,
 	}, nil
